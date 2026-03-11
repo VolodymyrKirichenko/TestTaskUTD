@@ -1,0 +1,22 @@
+node_modules
+dist
+.next
+out
+
+.env
+.env.local
+.env.*.local
+
+*.log
+npm-debug.log*
+
+# editors & tools
+.idea
+.vscode
+*.swp
+*.swo
+.DS_Store
+
+# ignore hidden tool dirs (keep .husky, .gitignore, etc.)
+.*
+!.gitignore
