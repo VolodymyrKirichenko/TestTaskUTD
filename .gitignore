@@ -18,5 +18,4 @@ npm-debug.log*
 .DS_Store
 
 # ignore hidden tool dirs (keep .husky, .gitignore, etc.)
-.*
 !.gitignore
