@@ -4,7 +4,7 @@ dist
 out
 
 .env
-.env.local
+.env.localі
 .env.*.local
 
 *.log
@@ -19,3 +19,5 @@ npm-debug.log*
 
 # ignore hidden tool dirs (keep .husky, .gitignore, etc.)
 !.gitignore
+.vercel
+.env*.local

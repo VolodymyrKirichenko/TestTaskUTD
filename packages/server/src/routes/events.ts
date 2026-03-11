@@ -4,7 +4,46 @@ import {supabase} from '../config/supabase';
 
 const router = Router();
 
-// GET /api/events
+/**
+ * @swagger
+ * /api/events:
+ *   get:
+ *     tags: [Events]
+ *     summary: Get paginated list of events
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search by title
+ *       - in: query
+ *         name: dateFrom
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: dateTo
+ *         schema:
+ *           type: string
+ *           format: date
+ *     responses:
+ *       200:
+ *         description: Paginated events list
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PaginatedResponse'
+ */
 router.get('/', async (req: Request, res: Response) => {
   const page = Math.max(1, parseInt(req.query.page as string) || 1);
   const limit = Math.min(
@@ -60,7 +99,33 @@ router.get('/', async (req: Request, res: Response) => {
   });
 });
 
-// GET /api/events/:id
+/**
+ * @swagger
+ * /api/events/{id}:
+ *   get:
+ *     tags: [Events]
+ *     summary: Get event by ID
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Event details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   $ref: '#/components/schemas/Event'
+ *                 success:
+ *                   type: boolean
+ *       404:
+ *         description: Event not found
+ */
 router.get('/:id', async (req: Request, res: Response) => {
   const {data, error} = await supabase
     .from('events')
@@ -86,7 +151,34 @@ router.get('/:id', async (req: Request, res: Response) => {
   });
 });
 
-// POST /api/events/:id/register
+/**
+ * @swagger
+ * /api/events/{id}/register:
+ *   post:
+ *     tags: [Events]
+ *     summary: Register for an event
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/EventRegistration'
+ *     responses:
+ *       201:
+ *         description: Registration successful
+ *       400:
+ *         description: Validation error
+ *       404:
+ *         description: Event not found
+ *       409:
+ *         description: Already registered
+ */
 router.post('/:id/register', async (req: Request, res: Response) => {
   const {data: event} = await supabase
     .from('events')
