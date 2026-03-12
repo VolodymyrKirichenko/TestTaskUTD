@@ -24,42 +24,50 @@ const router = Router();
  *               $ref: '#/components/schemas/AuthResponse'
  *       400:
  *         description: Validation error
+ *       409:
+ *         description: Email already registered
  */
 router.post('/register', async (req: Request, res: Response) => {
-  const {email, password, fullName} = req.body as {
+  const {email, fullName, phone} = req.body as {
     email?: string;
-    password?: string;
     fullName?: string;
+    phone?: string;
   };
-
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    res.status(400).json({success: false, message: 'Valid email is required'});
-    return;
-  }
-
-  if (!password || password.length < 6) {
-    res.status(400).json({
-      success: false,
-      message: 'Password must be at least 6 characters',
-    });
-    return;
-  }
 
   if (!fullName || !fullName.trim()) {
     res.status(400).json({success: false, message: 'Full name is required'});
     return;
   }
 
-  const {data, error} = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {full_name: fullName},
-    },
-  });
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    res.status(400).json({success: false, message: 'Valid email is required'});
+    return;
+  }
+
+  if (!phone || !phone.trim()) {
+    res.status(400).json({success: false, message: 'Phone is required'});
+    return;
+  }
+
+  const {data: existing} = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('email', email)
+    .single();
+
+  if (existing) {
+    res.status(409).json({success: false, message: 'Email already registered'});
+    return;
+  }
+
+  const {data, error} = await supabase
+    .from('profiles')
+    .insert({full_name: fullName, email, phone})
+    .select()
+    .single();
 
   if (error) {
-    res.status(400).json({success: false, message: error.message});
+    res.status(500).json({success: false, message: error.message});
     return;
   }
 
@@ -67,11 +75,11 @@ router.post('/register', async (req: Request, res: Response) => {
     success: true,
     data: {
       user: {
-        id: data.user!.id,
+        id: data.id,
         fullName,
-        email: data.user!.email!,
+        email,
+        phone,
       },
-      accessToken: data.session?.access_token,
     },
   });
 });
@@ -96,43 +104,38 @@ router.post('/register', async (req: Request, res: Response) => {
  *             schema:
  *               $ref: '#/components/schemas/AuthResponse'
  *       400:
- *         description: Missing credentials
- *       401:
- *         description: Invalid credentials
+ *         description: Missing email
+ *       404:
+ *         description: User not found
  */
 router.post('/login', async (req: Request, res: Response) => {
-  const {email, password} = req.body as {email?: string; password?: string};
+  const {email} = req.body as {email?: string};
 
-  if (!email || !password) {
-    res
-      .status(400)
-      .json({success: false, message: 'Email and password are required'});
+  if (!email) {
+    res.status(400).json({success: false, message: 'Email is required'});
     return;
   }
 
-  const {data, error} = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  const {data, error} = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('email', email)
+    .single();
 
-  if (error) {
-    res
-      .status(401)
-      .json({success: false, message: 'Invalid email or password'});
+  if (error || !data) {
+    res.status(404).json({success: false, message: 'User not found'});
     return;
   }
-
-  const fullName = data.user.user_metadata?.full_name || '';
 
   res.json({
     success: true,
     data: {
       user: {
-        id: data.user.id,
-        fullName,
-        email: data.user.email!,
+        id: data.id,
+        fullName: data.full_name,
+        email: data.email,
+        phone: data.phone,
       },
-      accessToken: data.session.access_token,
     },
   });
 });

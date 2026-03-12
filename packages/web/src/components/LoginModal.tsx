@@ -1,11 +1,9 @@
 'use client';
 
-import {type FC, useEffect, useCallback, useState} from 'react';
+import {type FC, useEffect, useCallback, useState, useRef} from 'react';
 import {useForm} from 'react-hook-form';
 import {zodResolver} from '@hookform/resolvers/zod';
 import {useLogin, useSignUp} from '@/hooks/useLogin';
-import FormTextInput from '@/components/inputs/FormTextInput';
-import FormPasswordInput from '@/components/inputs/FormPasswordInput';
 import {CloseIcon} from '@/components/icons';
 import {cn} from '@/utils/cn';
 import {
@@ -31,33 +29,41 @@ const LoginModal: FC<LoginModalProps> = ({isOpen, onClose}) => {
 
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
+    defaultValues: {email: ''},
   });
 
   const signUpForm = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),
+    defaultValues: {fullName: '', email: '', phone: ''},
   });
 
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   const handleClose = useCallback(() => {
-    onClose();
+    onCloseRef.current();
     loginForm.reset();
     signUpForm.reset();
     setIsSignUp(false);
     loginMutation.reset();
     signUpMutation.reset();
-  }, [onClose, loginForm, signUpForm, loginMutation, signUpMutation]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (isSuccess) handleClose();
   }, [isSuccess, handleClose]);
 
   useEffect(() => {
+    if (!isOpen) return;
+
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') handleClose();
     };
-    if (isOpen) {
-      document.addEventListener('keydown', handleEsc);
-      document.body.style.overflow = 'hidden';
-    }
+
+    document.addEventListener('keydown', handleEsc);
+    document.body.style.overflow = 'hidden';
+
     return () => {
       document.removeEventListener('keydown', handleEsc);
       document.body.style.overflow = '';
@@ -81,22 +87,15 @@ const LoginModal: FC<LoginModalProps> = ({isOpen, onClose}) => {
   };
 
   const getErrorMessage = (): string => {
-    if (!error) {
-      return 'Something went wrong. Please try again.';
-    }
-
+    if (!error) return 'Something went wrong. Please try again.';
     if ('response' in error && error.response) {
       const resp = error.response as {data?: {message?: string}};
-
       return resp.data?.message || 'Something went wrong. Please try again.';
     }
-
     return 'Something went wrong. Please try again.';
   };
 
-  if (!isOpen) {
-    return null;
-  }
+  if (!isOpen) return null;
 
   return (
     <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50'>
@@ -125,37 +124,77 @@ const LoginModal: FC<LoginModalProps> = ({isOpen, onClose}) => {
             onSubmit={signUpForm.handleSubmit(onSignUpSubmit)}
             className='space-y-4'
           >
-            <FormTextInput
-              control={signUpForm.control}
-              fieldName='fullName'
-              label='Full name'
-              placeholder='John Doe'
-            />
+            <div>
+              <label className='mb-1 block text-sm font-medium text-gray-700'>
+                Full name
+              </label>
+              <input
+                {...signUpForm.register('fullName')}
+                type='text'
+                placeholder='John Doe'
+                autoComplete='off'
+                className={cn(
+                  'w-full rounded-md border px-3 py-2 text-sm outline-none',
+                  'focus:border-gray-400 focus:ring-1 focus:ring-gray-400',
+                  signUpForm.formState.errors.fullName
+                    ? 'border-red-300'
+                    : 'border-gray-300'
+                )}
+              />
+              {signUpForm.formState.errors.fullName && (
+                <p className='mt-1 text-xs text-red-500'>
+                  {signUpForm.formState.errors.fullName.message}
+                </p>
+              )}
+            </div>
 
-            <FormTextInput
-              control={signUpForm.control}
-              fieldName='email'
-              label='Email'
-              type='email'
-              placeholder='john@example.com'
-              autoComplete='off'
-            />
+            <div>
+              <label className='mb-1 block text-sm font-medium text-gray-700'>
+                Email
+              </label>
+              <input
+                {...signUpForm.register('email')}
+                type='email'
+                placeholder='john@example.com'
+                autoComplete='off'
+                className={cn(
+                  'w-full rounded-md border px-3 py-2 text-sm outline-none',
+                  'focus:border-gray-400 focus:ring-1 focus:ring-gray-400',
+                  signUpForm.formState.errors.email
+                    ? 'border-red-300'
+                    : 'border-gray-300'
+                )}
+              />
+              {signUpForm.formState.errors.email && (
+                <p className='mt-1 text-xs text-red-500'>
+                  {signUpForm.formState.errors.email.message}
+                </p>
+              )}
+            </div>
 
-            <FormPasswordInput
-              control={signUpForm.control}
-              fieldName='password'
-              label='Password'
-              placeholder='At least 6 characters'
-              autoComplete='new-password'
-            />
-
-            <FormPasswordInput
-              control={signUpForm.control}
-              fieldName='confirmPassword'
-              label='Confirm password'
-              placeholder='Repeat your password'
-              autoComplete='new-password'
-            />
+            <div>
+              <label className='mb-1 block text-sm font-medium text-gray-700'>
+                Phone
+              </label>
+              <input
+                {...signUpForm.register('phone')}
+                type='tel'
+                placeholder='+380 99 123 4567'
+                autoComplete='off'
+                className={cn(
+                  'w-full rounded-md border px-3 py-2 text-sm outline-none',
+                  'focus:border-gray-400 focus:ring-1 focus:ring-gray-400',
+                  signUpForm.formState.errors.phone
+                    ? 'border-red-300'
+                    : 'border-gray-300'
+                )}
+              />
+              {signUpForm.formState.errors.phone && (
+                <p className='mt-1 text-xs text-red-500'>
+                  {signUpForm.formState.errors.phone.message}
+                </p>
+              )}
+            </div>
 
             <button
               type='submit'
@@ -175,22 +214,29 @@ const LoginModal: FC<LoginModalProps> = ({isOpen, onClose}) => {
             onSubmit={loginForm.handleSubmit(onLoginSubmit)}
             className='space-y-4'
           >
-            <FormTextInput
-              control={loginForm.control}
-              fieldName='email'
-              label='Email'
-              type='email'
-              placeholder='john@example.com'
-              autoComplete='off'
-            />
-
-            <FormPasswordInput
-              control={loginForm.control}
-              fieldName='password'
-              label='Password'
-              placeholder='At least 6 characters'
-              autoComplete='new-password'
-            />
+            <div>
+              <label className='mb-1 block text-sm font-medium text-gray-700'>
+                Email
+              </label>
+              <input
+                {...loginForm.register('email')}
+                type='email'
+                placeholder='john@example.com'
+                autoComplete='off'
+                className={cn(
+                  'w-full rounded-md border px-3 py-2 text-sm outline-none',
+                  'focus:border-gray-400 focus:ring-1 focus:ring-gray-400',
+                  loginForm.formState.errors.email
+                    ? 'border-red-300'
+                    : 'border-gray-300'
+                )}
+              />
+              {loginForm.formState.errors.email && (
+                <p className='mt-1 text-xs text-red-500'>
+                  {loginForm.formState.errors.email.message}
+                </p>
+              )}
+            </div>
 
             <button
               type='submit'

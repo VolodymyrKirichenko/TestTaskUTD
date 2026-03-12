@@ -24,7 +24,9 @@ const ConfirmModal: FC<ConfirmModalProps> = ({
 }) => {
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        onClose();
+      }
     };
 
     if (isOpen) {

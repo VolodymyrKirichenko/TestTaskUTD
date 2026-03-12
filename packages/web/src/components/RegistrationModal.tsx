@@ -1,12 +1,13 @@
 'use client';
 
-import {type FC, useEffect, useCallback} from 'react';
+import {type FC, useEffect, useCallback, useRef} from 'react';
 import {useForm} from 'react-hook-form';
 import {zodResolver} from '@hookform/resolvers/zod';
+import {useMutation, useQueryClient} from '@tanstack/react-query';
 import {registrationSchema, type RegistrationFormData} from '@/lib/validation';
-import {useEventRegistration} from '@/hooks/useEventRegistration';
+import {axiosInstance, queries} from '@/config/api.config';
+import {useUserStore} from '@/store/useUserStore';
 import FormTextInput from '@/components/inputs/FormTextInput';
-import FormPasswordInput from '@/components/inputs/FormPasswordInput';
 import {CheckIcon, CloseIcon} from '@/components/icons';
 import {cn} from '@/utils/cn';
 
@@ -23,14 +24,32 @@ const RegistrationModal: FC<RegistrationModalProps> = ({
   eventId,
   eventTitle,
 }) => {
-  const {
-    mutate,
-    isPending,
-    isSuccess,
-    isError,
-    error,
-    reset: resetMutation,
-  } = useEventRegistration(eventId);
+  const {login} = useUserStore();
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async (data: RegistrationFormData) => {
+      // 1. Create profile
+      const authRes = await axiosInstance.post('/auth/register', data);
+      const user = authRes.data.data.user;
+
+      // 2. Register for event
+      await axiosInstance.post(
+        queries.events.endpoints.register(eventId),
+        data
+      );
+
+      return user;
+    },
+    onSuccess: (user) => {
+      login(user);
+      queryClient.invalidateQueries({
+        queryKey: [queries.events.queryKeys.detail, eventId],
+      });
+    },
+  });
+
+  const {isPending, isSuccess, isError, error, reset: resetMutation} = mutation;
 
   const {
     control,
@@ -38,43 +57,45 @@ const RegistrationModal: FC<RegistrationModalProps> = ({
     reset: resetForm,
   } = useForm<RegistrationFormData>({
     resolver: zodResolver(registrationSchema),
+    defaultValues: {
+      fullName: '',
+      email: '',
+      phone: '',
+    },
   });
 
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   const handleClose = useCallback(() => {
-    onClose();
+    onCloseRef.current();
     resetForm();
     resetMutation();
-  }, [onClose, resetForm, resetMutation]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onSubmit = (data: RegistrationFormData) => {
-    mutate(data);
+    mutation.mutate(data);
   };
 
   const getErrorMessage = (): string => {
-    if (!error) {
-      return 'Something went wrong. Please try again.';
-    }
-
+    if (!error) return 'Something went wrong. Please try again.';
     if ('response' in error && error.response) {
       const resp = error.response as {data?: {message?: string}};
-
       return resp.data?.message || 'Something went wrong. Please try again.';
     }
-
     return 'Something went wrong. Please try again.';
   };
 
   useEffect(() => {
+    if (!isOpen) return;
+
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        handleClose();
-      }
+      if (e.key === 'Escape') handleClose();
     };
 
-    if (isOpen) {
-      document.addEventListener('keydown', handleEsc);
-      document.body.style.overflow = 'hidden';
-    }
+    document.addEventListener('keydown', handleEsc);
+    document.body.style.overflow = 'hidden';
 
     return () => {
       document.removeEventListener('keydown', handleEsc);
@@ -82,9 +103,7 @@ const RegistrationModal: FC<RegistrationModalProps> = ({
     };
   }, [isOpen, handleClose]);
 
-  if (!isOpen) {
-    return null;
-  }
+  if (!isOpen) return null;
 
   return (
     <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50'>
@@ -154,22 +173,6 @@ const RegistrationModal: FC<RegistrationModalProps> = ({
                 label='Phone'
                 type='tel'
                 placeholder='+380 99 123 4567'
-              />
-
-              <FormPasswordInput
-                control={control}
-                fieldName='password'
-                label='Password'
-                placeholder='At least 6 characters'
-                autoComplete='new-password'
-              />
-
-              <FormPasswordInput
-                control={control}
-                fieldName='confirmPassword'
-                label='Confirm password'
-                placeholder='Repeat your password'
-                autoComplete='new-password'
               />
 
               <button

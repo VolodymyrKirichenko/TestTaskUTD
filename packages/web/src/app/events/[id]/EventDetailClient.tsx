@@ -4,13 +4,28 @@ import {type FC, useState} from 'react';
 import {useParams} from 'next/navigation';
 import Link from 'next/link';
 import {useEvent} from '@/hooks/useEvent';
+import {useEventRegistration} from '@/hooks/useEventRegistration';
+import {useUserStore} from '@/store/useUserStore';
 import {BackArrowIcon, CalendarIcon, LocationIcon} from '@/components/icons';
 import RegistrationModal from '@/components/RegistrationModal';
+import {cn} from '@/utils/cn';
 
 const EventDetailClient: FC = () => {
   const {id} = useParams<{id: string}>();
   const {data: event, isLoading, isError} = useEvent(id);
+  const user = useUserStore((s) => s.user);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const {mutate: registerForEvent, isPending} = useEventRegistration(id);
+
+  const handleQuickRegister = () => {
+    if (!user) return;
+    registerForEvent({
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone,
+    });
+  };
 
   if (isLoading) {
     return (
@@ -38,6 +53,40 @@ const EventDetailClient: FC = () => {
       </div>
     );
   }
+
+  const renderRegisterButton = () => {
+    if (event.isRegistered) {
+      return (
+        <span className='inline-flex items-center gap-2 rounded-md bg-green-100 px-6 py-3 text-sm font-medium text-green-800'>
+          You are already registered
+        </span>
+      );
+    }
+
+    if (user) {
+      return (
+        <button
+          onClick={handleQuickRegister}
+          disabled={isPending}
+          className={cn(
+            'rounded-md bg-gray-900 px-6 py-3 text-sm font-medium text-white',
+            isPending ? 'cursor-not-allowed opacity-50' : 'hover:bg-gray-800'
+          )}
+        >
+          {isPending ? 'Registering...' : 'Register'}
+        </button>
+      );
+    }
+
+    return (
+      <button
+        onClick={() => setIsModalOpen(true)}
+        className='rounded-md bg-gray-900 px-6 py-3 text-sm font-medium text-white hover:bg-gray-800'
+      >
+        Register
+      </button>
+    );
+  };
 
   return (
     <div className='mx-auto max-w-3xl px-4 py-12'>
@@ -72,12 +121,7 @@ const EventDetailClient: FC = () => {
         <p className='leading-relaxed text-gray-700'>{event.description}</p>
       </div>
 
-      <button
-        onClick={() => setIsModalOpen(true)}
-        className='rounded-md bg-gray-900 px-6 py-3 text-sm font-medium text-white hover:bg-gray-800'
-      >
-        Register
-      </button>
+      {renderRegisterButton()}
 
       <RegistrationModal
         isOpen={isModalOpen}
