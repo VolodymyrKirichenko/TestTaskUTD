@@ -1,9 +1,7 @@
+import {redirect} from 'next/navigation';
+
 const Home = () => {
-  return (
-    <main>
-      <h1>Hello World</h1>
-    </main>
-  );
+  redirect('/events');
 };
 
 export default Home;
