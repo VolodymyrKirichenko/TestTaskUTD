@@ -37,6 +37,7 @@ jobs:
         run: npm run build -w @fullstack/web
         env:
           GITHUB_PAGES: 'true'
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

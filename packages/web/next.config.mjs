@@ -1,11 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   transpilePackages: ['@fullstack/shared'],
-  output: 'export',
-  basePath: process.env.GITHUB_PAGES === 'true' ? '/TestTaskUTD' : '',
-  images: {
-    unoptimized: true,
-  },
+  ...(process.env.GITHUB_PAGES === 'true' && {
+    output: 'export',
+    basePath: '/TestTaskUTD',
+    images: {
+      unoptimized: true,
+    },
+  }),
 };
 
 export default nextConfig;
