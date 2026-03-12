@@ -29,11 +29,25 @@ const RegistrationModal: FC<RegistrationModalProps> = ({
 
   const mutation = useMutation({
     mutationFn: async (data: RegistrationFormData) => {
-      // 1. Create profile
-      const authRes = await axiosInstance.post('/auth/register', data);
-      const user = authRes.data.data.user;
+      // Create profile (or get existing)
+      let user;
+      try {
+        const authRes = await axiosInstance.post('/auth/register', data);
+        user = authRes.data.data.user;
+      } catch (err: unknown) {
+        const axiosErr = err as {response?: {status?: number}};
+        if (axiosErr.response?.status === 409) {
+          // Profile already exists, login instead
+          const loginRes = await axiosInstance.post('/auth/login', {
+            email: data.email,
+          });
+          user = loginRes.data.data.user;
+        } else {
+          throw err;
+        }
+      }
 
-      // 2. Register for event
+      // Register for event
       await axiosInstance.post(
         queries.events.endpoints.register(eventId),
         data
@@ -45,6 +59,9 @@ const RegistrationModal: FC<RegistrationModalProps> = ({
       login(user);
       queryClient.invalidateQueries({
         queryKey: [queries.events.queryKeys.detail, eventId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [queries.events.queryKeys.list],
       });
     },
   });
@@ -79,16 +96,22 @@ const RegistrationModal: FC<RegistrationModalProps> = ({
   };
 
   const getErrorMessage = (): string => {
-    if (!error) return 'Something went wrong. Please try again.';
+    if (!error) {
+      return 'Something went wrong. Please try again.';
+    }
+
     if ('response' in error && error.response) {
       const resp = error.response as {data?: {message?: string}};
+
       return resp.data?.message || 'Something went wrong. Please try again.';
     }
     return 'Something went wrong. Please try again.';
   };
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      return;
+    }
 
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') handleClose();
@@ -103,7 +126,9 @@ const RegistrationModal: FC<RegistrationModalProps> = ({
     };
   }, [isOpen, handleClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50'>
