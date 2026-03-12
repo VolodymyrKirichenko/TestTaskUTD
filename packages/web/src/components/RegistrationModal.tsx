@@ -5,7 +5,8 @@ import {useForm} from 'react-hook-form';
 import {zodResolver} from '@hookform/resolvers/zod';
 import {registrationSchema, type RegistrationFormData} from '@/lib/validation';
 import {useEventRegistration} from '@/hooks/useEventRegistration';
-import PasswordInput from '@/components/PasswordInput';
+import FormTextInput from '@/components/inputs/FormTextInput';
+import FormPasswordInput from '@/components/inputs/FormPasswordInput';
 import {CheckIcon, CloseIcon} from '@/components/icons';
 import {cn} from '@/utils/cn';
 
@@ -32,10 +33,9 @@ const RegistrationModal: FC<RegistrationModalProps> = ({
   } = useEventRegistration(eventId);
 
   const {
-    register,
+    control,
     handleSubmit,
     reset: resetForm,
-    formState: {errors},
   } = useForm<RegistrationFormData>({
     resolver: zodResolver(registrationSchema),
   });
@@ -132,133 +132,45 @@ const RegistrationModal: FC<RegistrationModalProps> = ({
             )}
 
             <form onSubmit={handleSubmit(onSubmit)} className='space-y-4'>
-              <div>
-                <label
-                  htmlFor='fullName'
-                  className='mb-1 block text-sm font-medium text-gray-700'
-                >
-                  Full name
-                </label>
+              <FormTextInput
+                control={control}
+                fieldName='fullName'
+                label='Full name'
+                placeholder='John Doe'
+              />
 
-                <input
-                  id='fullName'
-                  type='text'
-                  {...register('fullName')}
-                  className={cn(
-                    'w-full rounded-md border px-3 py-2 text-sm outline-none',
-                    'focus:border-gray-400 focus:ring-1 focus:ring-gray-400',
-                    errors.fullName ? 'border-red-300' : 'border-gray-300'
-                  )}
-                  placeholder='John Doe'
-                />
+              <FormTextInput
+                control={control}
+                fieldName='email'
+                label='Email'
+                type='email'
+                placeholder='john@example.com'
+                autoComplete='off'
+              />
 
-                {errors.fullName && (
-                  <p className='mt-1 text-xs text-red-500'>
-                    {errors.fullName.message}
-                  </p>
-                )}
-              </div>
+              <FormTextInput
+                control={control}
+                fieldName='phone'
+                label='Phone'
+                type='tel'
+                placeholder='+380 99 123 4567'
+              />
 
-              <div>
-                <label
-                  htmlFor='email'
-                  className='mb-1 block text-sm font-medium text-gray-700'
-                >
-                  Email
-                </label>
+              <FormPasswordInput
+                control={control}
+                fieldName='password'
+                label='Password'
+                placeholder='At least 6 characters'
+                autoComplete='new-password'
+              />
 
-                <input
-                  id='email'
-                  type='email'
-                  {...register('email')}
-                  autoComplete='off'
-                  className={cn(
-                    'w-full rounded-md border px-3 py-2 text-sm outline-none',
-                    'focus:border-gray-400 focus:ring-1 focus:ring-gray-400',
-                    errors.email ? 'border-red-300' : 'border-gray-300'
-                  )}
-                  placeholder='john@example.com'
-                />
-
-                {errors.email && (
-                  <p className='mt-1 text-xs text-red-500'>
-                    {errors.email.message}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label
-                  htmlFor='phone'
-                  className='mb-1 block text-sm font-medium text-gray-700'
-                >
-                  Phone
-                </label>
-
-                <input
-                  id='phone'
-                  type='tel'
-                  {...register('phone')}
-                  className={cn(
-                    'w-full rounded-md border px-3 py-2 text-sm outline-none',
-                    'focus:border-gray-400 focus:ring-1 focus:ring-gray-400',
-                    errors.phone ? 'border-red-300' : 'border-gray-300'
-                  )}
-                  placeholder='+380 99 123 4567'
-                />
-
-                {errors.phone && (
-                  <p className='mt-1 text-xs text-red-500'>
-                    {errors.phone.message}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label
-                  htmlFor='reg-password'
-                  className='mb-1 block text-sm font-medium text-gray-700'
-                >
-                  Password
-                </label>
-
-                <PasswordInput
-                  id='reg-password'
-                  {...register('password')}
-                  hasError={!!errors.password}
-                  autoComplete='new-password'
-                  placeholder='At least 6 characters'
-                />
-
-                {errors.password && (
-                  <p className='mt-1 text-xs text-red-500'>
-                    {errors.password.message}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label
-                  htmlFor='reg-confirm-password'
-                  className='mb-1 block text-sm font-medium text-gray-700'
-                >
-                  Confirm password
-                </label>
-
-                <PasswordInput
-                  id='reg-confirm-password'
-                  {...register('confirmPassword')}
-                  hasError={!!errors.confirmPassword}
-                  autoComplete='new-password'
-                  placeholder='Repeat your password'
-                />
-
-                {errors.confirmPassword && (
-                  <p className='mt-1 text-xs text-red-500'>
-                    {errors.confirmPassword.message}
-                  </p>
-                )}
-              </div>
+              <FormPasswordInput
+                control={control}
+                fieldName='confirmPassword'
+                label='Confirm password'
+                placeholder='Repeat your password'
+                autoComplete='new-password'
+              />
 
               <button
                 type='submit'

@@ -1,10 +1,19 @@
 'use client';
 
 import {type FC, useEffect, useCallback, useState} from 'react';
+import {useForm} from 'react-hook-form';
+import {zodResolver} from '@hookform/resolvers/zod';
 import {useLogin, useSignUp} from '@/hooks/useLogin';
-import PasswordInput from '@/components/PasswordInput';
+import FormTextInput from '@/components/inputs/FormTextInput';
+import FormPasswordInput from '@/components/inputs/FormPasswordInput';
 import {CloseIcon} from '@/components/icons';
 import {cn} from '@/utils/cn';
+import {
+  loginSchema,
+  signUpSchema,
+  type LoginFormData,
+  type SignUpFormData,
+} from '@/lib/validation';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -13,11 +22,6 @@ interface LoginModalProps {
 
 const LoginModal: FC<LoginModalProps> = ({isOpen, onClose}) => {
   const [isSignUp, setIsSignUp] = useState(false);
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [confirmError, setConfirmError] = useState('');
 
   const loginMutation = useLogin();
   const signUpMutation = useSignUp();
@@ -25,17 +29,22 @@ const LoginModal: FC<LoginModalProps> = ({isOpen, onClose}) => {
   const mutation = isSignUp ? signUpMutation : loginMutation;
   const {isPending, isSuccess, isError, error} = mutation;
 
+  const loginForm = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+  });
+
+  const signUpForm = useForm<SignUpFormData>({
+    resolver: zodResolver(signUpSchema),
+  });
+
   const handleClose = useCallback(() => {
     onClose();
-    setEmail('');
-    setPassword('');
-    setConfirmPassword('');
-    setFullName('');
-    setConfirmError('');
+    loginForm.reset();
+    signUpForm.reset();
     setIsSignUp(false);
     loginMutation.reset();
     signUpMutation.reset();
-  }, [onClose, loginMutation, signUpMutation]);
+  }, [onClose, loginForm, signUpForm, loginMutation, signUpMutation]);
 
   useEffect(() => {
     if (isSuccess) handleClose();
@@ -55,25 +64,18 @@ const LoginModal: FC<LoginModalProps> = ({isOpen, onClose}) => {
     };
   }, [isOpen, handleClose]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setConfirmError('');
+  const onLoginSubmit = (data: LoginFormData) => {
+    loginMutation.mutate(data);
+  };
 
-    if (isSignUp) {
-      if (password !== confirmPassword) {
-        setConfirmError('Passwords do not match');
-        return;
-      }
-      signUpMutation.mutate({email, password, fullName});
-    } else {
-      loginMutation.mutate({email, password});
-    }
+  const onSignUpSubmit = (data: SignUpFormData) => {
+    signUpMutation.mutate(data);
   };
 
   const toggleMode = () => {
     setIsSignUp((prev) => !prev);
-    setConfirmPassword('');
-    setConfirmError('');
+    loginForm.reset();
+    signUpForm.reset();
     loginMutation.reset();
     signUpMutation.reset();
   };
@@ -118,114 +120,92 @@ const LoginModal: FC<LoginModalProps> = ({isOpen, onClose}) => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className='space-y-4'>
-          {isSignUp && (
-            <div>
-              <label
-                htmlFor='auth-fullname'
-                className='mb-1 block text-sm font-medium text-gray-700'
-              >
-                Full name
-              </label>
-
-              <input
-                id='auth-fullname'
-                type='text'
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className={cn(
-                  'w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none',
-                  'focus:border-gray-400 focus:ring-1 focus:ring-gray-400'
-                )}
-                placeholder='John Doe'
-                required
-              />
-            </div>
-          )}
-
-          <div>
-            <label
-              htmlFor='auth-email'
-              className='mb-1 block text-sm font-medium text-gray-700'
-            >
-              Email
-            </label>
-
-            <input
-              id='auth-email'
-              type='email'
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete='off'
-              className={cn(
-                'w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none',
-                'focus:border-gray-400 focus:ring-1 focus:ring-gray-400'
-              )}
-              placeholder='john@example.com'
-              required
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor='auth-password'
-              className='mb-1 block text-sm font-medium text-gray-700'
-            >
-              Password
-            </label>
-
-            <PasswordInput
-              id='auth-password'
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete='new-password'
-              placeholder='At least 6 characters'
-              minLength={6}
-              required
-            />
-          </div>
-
-          {isSignUp && (
-            <div>
-              <label
-                htmlFor='auth-confirm-password'
-                className='mb-1 block text-sm font-medium text-gray-700'
-              >
-                Confirm password
-              </label>
-
-              <PasswordInput
-                id='auth-confirm-password'
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                hasError={!!confirmError}
-                autoComplete='new-password'
-                placeholder='Repeat your password'
-                required
-              />
-              {confirmError && (
-                <p className='mt-1 text-xs text-red-500'>{confirmError}</p>
-              )}
-            </div>
-          )}
-
-          <button
-            type='submit'
-            disabled={isPending}
-            className={cn(
-              'w-full rounded-md bg-gray-900 px-4 py-2 text-sm text-white',
-              isPending ? 'cursor-not-allowed opacity-50' : 'hover:bg-gray-800'
-            )}
+        {isSignUp ? (
+          <form
+            onSubmit={signUpForm.handleSubmit(onSignUpSubmit)}
+            className='space-y-4'
           >
-            {isPending
-              ? isSignUp
-                ? 'Creating account...'
-                : 'Logging in...'
-              : isSignUp
-                ? 'Sign Up'
-                : 'Login'}
-          </button>
-        </form>
+            <FormTextInput
+              control={signUpForm.control}
+              fieldName='fullName'
+              label='Full name'
+              placeholder='John Doe'
+            />
+
+            <FormTextInput
+              control={signUpForm.control}
+              fieldName='email'
+              label='Email'
+              type='email'
+              placeholder='john@example.com'
+              autoComplete='off'
+            />
+
+            <FormPasswordInput
+              control={signUpForm.control}
+              fieldName='password'
+              label='Password'
+              placeholder='At least 6 characters'
+              autoComplete='new-password'
+            />
+
+            <FormPasswordInput
+              control={signUpForm.control}
+              fieldName='confirmPassword'
+              label='Confirm password'
+              placeholder='Repeat your password'
+              autoComplete='new-password'
+            />
+
+            <button
+              type='submit'
+              disabled={isPending}
+              className={cn(
+                'w-full rounded-md bg-gray-900 px-4 py-2 text-sm text-white',
+                isPending
+                  ? 'cursor-not-allowed opacity-50'
+                  : 'hover:bg-gray-800'
+              )}
+            >
+              {isPending ? 'Creating account...' : 'Sign Up'}
+            </button>
+          </form>
+        ) : (
+          <form
+            onSubmit={loginForm.handleSubmit(onLoginSubmit)}
+            className='space-y-4'
+          >
+            <FormTextInput
+              control={loginForm.control}
+              fieldName='email'
+              label='Email'
+              type='email'
+              placeholder='john@example.com'
+              autoComplete='off'
+            />
+
+            <FormPasswordInput
+              control={loginForm.control}
+              fieldName='password'
+              label='Password'
+              placeholder='At least 6 characters'
+              autoComplete='new-password'
+            />
+
+            <button
+              type='submit'
+              disabled={isPending}
+              className={cn(
+                'w-full rounded-md bg-gray-900 px-4 py-2 text-sm text-white',
+                isPending
+                  ? 'cursor-not-allowed opacity-50'
+                  : 'hover:bg-gray-800'
+              )}
+            >
+              {isPending ? 'Logging in...' : 'Login'}
+            </button>
+          </form>
+        )}
 
         <p className='mt-4 text-center text-sm text-gray-500'>
           {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
