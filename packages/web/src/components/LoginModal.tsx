@@ -1,10 +1,17 @@
 'use client';
 
-import {type FC, useEffect, useCallback, useState} from 'react';
+import {type FC, useEffect, useCallback, useState, useRef} from 'react';
+import {useForm} from 'react-hook-form';
+import {zodResolver} from '@hookform/resolvers/zod';
 import {useLogin, useSignUp} from '@/hooks/useLogin';
-import PasswordInput from '@/components/PasswordInput';
 import {CloseIcon} from '@/components/icons';
 import {cn} from '@/utils/cn';
+import {
+  loginSchema,
+  signUpSchema,
+  type LoginFormData,
+  type SignUpFormData,
+} from '@/lib/validation';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -13,11 +20,6 @@ interface LoginModalProps {
 
 const LoginModal: FC<LoginModalProps> = ({isOpen, onClose}) => {
   const [isSignUp, setIsSignUp] = useState(false);
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [confirmError, setConfirmError] = useState('');
 
   const loginMutation = useLogin();
   const signUpMutation = useSignUp();
@@ -25,76 +27,75 @@ const LoginModal: FC<LoginModalProps> = ({isOpen, onClose}) => {
   const mutation = isSignUp ? signUpMutation : loginMutation;
   const {isPending, isSuccess, isError, error} = mutation;
 
+  const loginForm = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {email: ''},
+  });
+
+  const signUpForm = useForm<SignUpFormData>({
+    resolver: zodResolver(signUpSchema),
+    defaultValues: {fullName: '', email: '', phone: ''},
+  });
+
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   const handleClose = useCallback(() => {
-    onClose();
-    setEmail('');
-    setPassword('');
-    setConfirmPassword('');
-    setFullName('');
-    setConfirmError('');
+    onCloseRef.current();
+    loginForm.reset();
+    signUpForm.reset();
     setIsSignUp(false);
     loginMutation.reset();
     signUpMutation.reset();
-  }, [onClose, loginMutation, signUpMutation]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (isSuccess) handleClose();
   }, [isSuccess, handleClose]);
 
   useEffect(() => {
+    if (!isOpen) return;
+
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') handleClose();
     };
-    if (isOpen) {
-      document.addEventListener('keydown', handleEsc);
-      document.body.style.overflow = 'hidden';
-    }
+
+    document.addEventListener('keydown', handleEsc);
+    document.body.style.overflow = 'hidden';
+
     return () => {
       document.removeEventListener('keydown', handleEsc);
       document.body.style.overflow = '';
     };
   }, [isOpen, handleClose]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setConfirmError('');
+  const onLoginSubmit = (data: LoginFormData) => {
+    loginMutation.mutate(data);
+  };
 
-    if (isSignUp) {
-      if (password !== confirmPassword) {
-        setConfirmError('Passwords do not match');
-        return;
-      }
-      signUpMutation.mutate({email, password, fullName});
-    } else {
-      loginMutation.mutate({email, password});
-    }
+  const onSignUpSubmit = (data: SignUpFormData) => {
+    signUpMutation.mutate(data);
   };
 
   const toggleMode = () => {
     setIsSignUp((prev) => !prev);
-    setConfirmPassword('');
-    setConfirmError('');
+    loginForm.reset();
+    signUpForm.reset();
     loginMutation.reset();
     signUpMutation.reset();
   };
 
   const getErrorMessage = (): string => {
-    if (!error) {
-      return 'Something went wrong. Please try again.';
-    }
-
+    if (!error) return 'Something went wrong. Please try again.';
     if ('response' in error && error.response) {
       const resp = error.response as {data?: {message?: string}};
-
       return resp.data?.message || 'Something went wrong. Please try again.';
     }
-
     return 'Something went wrong. Please try again.';
   };
 
-  if (!isOpen) {
-    return null;
-  }
+  if (!isOpen) return null;
 
   return (
     <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50'>
@@ -118,114 +119,139 @@ const LoginModal: FC<LoginModalProps> = ({isOpen, onClose}) => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className='space-y-4'>
-          {isSignUp && (
+        {isSignUp ? (
+          <form
+            onSubmit={signUpForm.handleSubmit(onSignUpSubmit)}
+            className='space-y-4'
+          >
             <div>
-              <label
-                htmlFor='auth-fullname'
-                className='mb-1 block text-sm font-medium text-gray-700'
-              >
+              <label className='mb-1 block text-sm font-medium text-gray-700'>
                 Full name
               </label>
-
               <input
-                id='auth-fullname'
+                {...signUpForm.register('fullName')}
                 type='text'
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className={cn(
-                  'w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none',
-                  'focus:border-gray-400 focus:ring-1 focus:ring-gray-400'
-                )}
                 placeholder='John Doe'
-                required
+                autoComplete='off'
+                className={cn(
+                  'w-full rounded-md border px-3 py-2 text-sm outline-none',
+                  'focus:border-gray-400 focus:ring-1 focus:ring-gray-400',
+                  signUpForm.formState.errors.fullName
+                    ? 'border-red-300'
+                    : 'border-gray-300'
+                )}
               />
-            </div>
-          )}
-
-          <div>
-            <label
-              htmlFor='auth-email'
-              className='mb-1 block text-sm font-medium text-gray-700'
-            >
-              Email
-            </label>
-
-            <input
-              id='auth-email'
-              type='email'
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete='off'
-              className={cn(
-                'w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none',
-                'focus:border-gray-400 focus:ring-1 focus:ring-gray-400'
+              {signUpForm.formState.errors.fullName && (
+                <p className='mt-1 text-xs text-red-500'>
+                  {signUpForm.formState.errors.fullName.message}
+                </p>
               )}
-              placeholder='john@example.com'
-              required
-            />
-          </div>
+            </div>
 
-          <div>
-            <label
-              htmlFor='auth-password'
-              className='mb-1 block text-sm font-medium text-gray-700'
-            >
-              Password
-            </label>
-
-            <PasswordInput
-              id='auth-password'
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete='new-password'
-              placeholder='At least 6 characters'
-              minLength={6}
-              required
-            />
-          </div>
-
-          {isSignUp && (
             <div>
-              <label
-                htmlFor='auth-confirm-password'
-                className='mb-1 block text-sm font-medium text-gray-700'
-              >
-                Confirm password
+              <label className='mb-1 block text-sm font-medium text-gray-700'>
+                Email
               </label>
-
-              <PasswordInput
-                id='auth-confirm-password'
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                hasError={!!confirmError}
-                autoComplete='new-password'
-                placeholder='Repeat your password'
-                required
+              <input
+                {...signUpForm.register('email')}
+                type='email'
+                placeholder='john@example.com'
+                autoComplete='off'
+                className={cn(
+                  'w-full rounded-md border px-3 py-2 text-sm outline-none',
+                  'focus:border-gray-400 focus:ring-1 focus:ring-gray-400',
+                  signUpForm.formState.errors.email
+                    ? 'border-red-300'
+                    : 'border-gray-300'
+                )}
               />
-              {confirmError && (
-                <p className='mt-1 text-xs text-red-500'>{confirmError}</p>
+              {signUpForm.formState.errors.email && (
+                <p className='mt-1 text-xs text-red-500'>
+                  {signUpForm.formState.errors.email.message}
+                </p>
               )}
             </div>
-          )}
 
-          <button
-            type='submit'
-            disabled={isPending}
-            className={cn(
-              'w-full rounded-md bg-gray-900 px-4 py-2 text-sm text-white',
-              isPending ? 'cursor-not-allowed opacity-50' : 'hover:bg-gray-800'
-            )}
+            <div>
+              <label className='mb-1 block text-sm font-medium text-gray-700'>
+                Phone
+              </label>
+              <input
+                {...signUpForm.register('phone')}
+                type='tel'
+                placeholder='+380 99 123 4567'
+                autoComplete='off'
+                className={cn(
+                  'w-full rounded-md border px-3 py-2 text-sm outline-none',
+                  'focus:border-gray-400 focus:ring-1 focus:ring-gray-400',
+                  signUpForm.formState.errors.phone
+                    ? 'border-red-300'
+                    : 'border-gray-300'
+                )}
+              />
+              {signUpForm.formState.errors.phone && (
+                <p className='mt-1 text-xs text-red-500'>
+                  {signUpForm.formState.errors.phone.message}
+                </p>
+              )}
+            </div>
+
+            <button
+              type='submit'
+              disabled={isPending}
+              className={cn(
+                'w-full rounded-md bg-gray-900 px-4 py-2 text-sm text-white',
+                isPending
+                  ? 'cursor-not-allowed opacity-50'
+                  : 'hover:bg-gray-800'
+              )}
+            >
+              {isPending ? 'Creating account...' : 'Sign Up'}
+            </button>
+          </form>
+        ) : (
+          <form
+            onSubmit={loginForm.handleSubmit(onLoginSubmit)}
+            className='space-y-4'
           >
-            {isPending
-              ? isSignUp
-                ? 'Creating account...'
-                : 'Logging in...'
-              : isSignUp
-                ? 'Sign Up'
-                : 'Login'}
-          </button>
-        </form>
+            <div>
+              <label className='mb-1 block text-sm font-medium text-gray-700'>
+                Email
+              </label>
+              <input
+                {...loginForm.register('email')}
+                type='email'
+                placeholder='john@example.com'
+                autoComplete='off'
+                className={cn(
+                  'w-full rounded-md border px-3 py-2 text-sm outline-none',
+                  'focus:border-gray-400 focus:ring-1 focus:ring-gray-400',
+                  loginForm.formState.errors.email
+                    ? 'border-red-300'
+                    : 'border-gray-300'
+                )}
+              />
+              {loginForm.formState.errors.email && (
+                <p className='mt-1 text-xs text-red-500'>
+                  {loginForm.formState.errors.email.message}
+                </p>
+              )}
+            </div>
+
+            <button
+              type='submit'
+              disabled={isPending}
+              className={cn(
+                'w-full rounded-md bg-gray-900 px-4 py-2 text-sm text-white',
+                isPending
+                  ? 'cursor-not-allowed opacity-50'
+                  : 'hover:bg-gray-800'
+              )}
+            >
+              {isPending ? 'Logging in...' : 'Login'}
+            </button>
+          </form>
+        )}
 
         <p className='mt-4 text-center text-sm text-gray-500'>
           {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}

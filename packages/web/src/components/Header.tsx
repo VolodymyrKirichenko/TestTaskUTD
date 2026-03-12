@@ -1,6 +1,6 @@
 'use client';
 
-import {type FC, useState} from 'react';
+import {type FC, useState, useCallback} from 'react';
 import Link from 'next/link';
 import {useUserStore} from '@/store/useUserStore';
 import LoginModal from '@/components/LoginModal';
@@ -10,6 +10,8 @@ const Header: FC = () => {
   const {user, logout} = useUserStore();
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
+  const closeLogin = useCallback(() => setIsLoginOpen(false), []);
+  const closeLogout = useCallback(() => setIsLogoutOpen(false), []);
 
   return (
     <>
@@ -47,11 +49,11 @@ const Header: FC = () => {
         </div>
       </header>
 
-      <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />
+      <LoginModal isOpen={isLoginOpen} onClose={closeLogin} />
 
       <ConfirmModal
         isOpen={isLogoutOpen}
-        onClose={() => setIsLogoutOpen(false)}
+        onClose={closeLogout}
         onConfirm={logout}
         title='Logout'
         message='Are you sure you want to logout?'

@@ -1,3 +1,4 @@
+import path from 'path';
 import swaggerJsdoc from 'swagger-jsdoc';
 
 const options: swaggerJsdoc.Options = {
@@ -20,6 +21,7 @@ const options: swaggerJsdoc.Options = {
             location: {type: 'string'},
             shortDescription: {type: 'string'},
             description: {type: 'string'},
+            isRegistered: {type: 'boolean'},
           },
         },
         EventListItem: {
@@ -34,12 +36,11 @@ const options: swaggerJsdoc.Options = {
         },
         EventRegistration: {
           type: 'object',
-          required: ['fullName', 'email', 'phone', 'password'],
+          required: ['fullName', 'email', 'phone'],
           properties: {
             fullName: {type: 'string'},
             email: {type: 'string', format: 'email'},
             phone: {type: 'string'},
-            password: {type: 'string', minLength: 6},
           },
         },
         PaginatedResponse: {
@@ -65,19 +66,18 @@ const options: swaggerJsdoc.Options = {
         },
         AuthRegisterBody: {
           type: 'object',
-          required: ['email', 'password', 'fullName'],
+          required: ['email', 'fullName', 'phone'],
           properties: {
             email: {type: 'string', format: 'email'},
-            password: {type: 'string', minLength: 6},
             fullName: {type: 'string'},
+            phone: {type: 'string'},
           },
         },
         AuthLoginBody: {
           type: 'object',
-          required: ['email', 'password'],
+          required: ['email'],
           properties: {
             email: {type: 'string', format: 'email'},
-            password: {type: 'string'},
           },
         },
         AuthResponse: {
@@ -93,9 +93,9 @@ const options: swaggerJsdoc.Options = {
                     id: {type: 'string'},
                     fullName: {type: 'string'},
                     email: {type: 'string'},
+                    phone: {type: 'string'},
                   },
                 },
-                accessToken: {type: 'string'},
               },
             },
           },
@@ -103,7 +103,12 @@ const options: swaggerJsdoc.Options = {
       },
     },
   },
-  apis: ['./src/routes/*.ts', './src/app.ts'],
+  apis: [
+    path.join(__dirname, '../routes/*.ts'),
+    path.join(__dirname, '../routes/*.js'),
+    path.join(__dirname, '../app.ts'),
+    path.join(__dirname, '../app.js'),
+  ],
 };
 
 export const swaggerSpec = swaggerJsdoc(options);

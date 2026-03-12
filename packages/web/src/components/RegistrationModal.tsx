@@ -1,11 +1,13 @@
 'use client';
 
-import {type FC, useEffect, useCallback} from 'react';
+import {type FC, useEffect, useCallback, useRef} from 'react';
 import {useForm} from 'react-hook-form';
 import {zodResolver} from '@hookform/resolvers/zod';
+import {useMutation, useQueryClient} from '@tanstack/react-query';
 import {registrationSchema, type RegistrationFormData} from '@/lib/validation';
-import {useEventRegistration} from '@/hooks/useEventRegistration';
-import PasswordInput from '@/components/PasswordInput';
+import {axiosInstance, queries} from '@/config/api.config';
+import {useUserStore} from '@/store/useUserStore';
+import FormTextInput from '@/components/inputs/FormTextInput';
 import {CheckIcon, CloseIcon} from '@/components/icons';
 import {cn} from '@/utils/cn';
 
@@ -22,32 +24,75 @@ const RegistrationModal: FC<RegistrationModalProps> = ({
   eventId,
   eventTitle,
 }) => {
-  const {
-    mutate,
-    isPending,
-    isSuccess,
-    isError,
-    error,
-    reset: resetMutation,
-  } = useEventRegistration(eventId);
+  const {login} = useUserStore();
+  const queryClient = useQueryClient();
 
-  const {
-    register,
-    handleSubmit,
-    reset: resetForm,
-    formState: {errors},
-  } = useForm<RegistrationFormData>({
-    resolver: zodResolver(registrationSchema),
+  const mutation = useMutation({
+    mutationFn: async (data: RegistrationFormData) => {
+      // Create profile (or get existing)
+      let user;
+      try {
+        const authRes = await axiosInstance.post('/auth/register', data);
+        user = authRes.data.data.user;
+      } catch (err: unknown) {
+        const axiosErr = err as {response?: {status?: number}};
+        if (axiosErr.response?.status === 409) {
+          // Profile already exists, login instead
+          const loginRes = await axiosInstance.post('/auth/login', {
+            email: data.email,
+          });
+          user = loginRes.data.data.user;
+        } else {
+          throw err;
+        }
+      }
+
+      // Register for event
+      await axiosInstance.post(
+        queries.events.endpoints.register(eventId),
+        data
+      );
+
+      return user;
+    },
+    onSuccess: (user) => {
+      login(user);
+      queryClient.invalidateQueries({
+        queryKey: [queries.events.queryKeys.detail, eventId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [queries.events.queryKeys.list],
+      });
+    },
   });
 
+  const {isPending, isSuccess, isError, error, reset: resetMutation} = mutation;
+
+  const {
+    control,
+    handleSubmit,
+    reset: resetForm,
+  } = useForm<RegistrationFormData>({
+    resolver: zodResolver(registrationSchema),
+    defaultValues: {
+      fullName: '',
+      email: '',
+      phone: '',
+    },
+  });
+
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   const handleClose = useCallback(() => {
-    onClose();
+    onCloseRef.current();
     resetForm();
     resetMutation();
-  }, [onClose, resetForm, resetMutation]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onSubmit = (data: RegistrationFormData) => {
-    mutate(data);
+    mutation.mutate(data);
   };
 
   const getErrorMessage = (): string => {
@@ -60,21 +105,20 @@ const RegistrationModal: FC<RegistrationModalProps> = ({
 
       return resp.data?.message || 'Something went wrong. Please try again.';
     }
-
     return 'Something went wrong. Please try again.';
   };
 
   useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        handleClose();
-      }
+      if (e.key === 'Escape') handleClose();
     };
 
-    if (isOpen) {
-      document.addEventListener('keydown', handleEsc);
-      document.body.style.overflow = 'hidden';
-    }
+    document.addEventListener('keydown', handleEsc);
+    document.body.style.overflow = 'hidden';
 
     return () => {
       document.removeEventListener('keydown', handleEsc);
@@ -132,133 +176,29 @@ const RegistrationModal: FC<RegistrationModalProps> = ({
             )}
 
             <form onSubmit={handleSubmit(onSubmit)} className='space-y-4'>
-              <div>
-                <label
-                  htmlFor='fullName'
-                  className='mb-1 block text-sm font-medium text-gray-700'
-                >
-                  Full name
-                </label>
+              <FormTextInput
+                control={control}
+                fieldName='fullName'
+                label='Full name'
+                placeholder='John Doe'
+              />
 
-                <input
-                  id='fullName'
-                  type='text'
-                  {...register('fullName')}
-                  className={cn(
-                    'w-full rounded-md border px-3 py-2 text-sm outline-none',
-                    'focus:border-gray-400 focus:ring-1 focus:ring-gray-400',
-                    errors.fullName ? 'border-red-300' : 'border-gray-300'
-                  )}
-                  placeholder='John Doe'
-                />
+              <FormTextInput
+                control={control}
+                fieldName='email'
+                label='Email'
+                type='email'
+                placeholder='john@example.com'
+                autoComplete='off'
+              />
 
-                {errors.fullName && (
-                  <p className='mt-1 text-xs text-red-500'>
-                    {errors.fullName.message}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label
-                  htmlFor='email'
-                  className='mb-1 block text-sm font-medium text-gray-700'
-                >
-                  Email
-                </label>
-
-                <input
-                  id='email'
-                  type='email'
-                  {...register('email')}
-                  autoComplete='off'
-                  className={cn(
-                    'w-full rounded-md border px-3 py-2 text-sm outline-none',
-                    'focus:border-gray-400 focus:ring-1 focus:ring-gray-400',
-                    errors.email ? 'border-red-300' : 'border-gray-300'
-                  )}
-                  placeholder='john@example.com'
-                />
-
-                {errors.email && (
-                  <p className='mt-1 text-xs text-red-500'>
-                    {errors.email.message}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label
-                  htmlFor='phone'
-                  className='mb-1 block text-sm font-medium text-gray-700'
-                >
-                  Phone
-                </label>
-
-                <input
-                  id='phone'
-                  type='tel'
-                  {...register('phone')}
-                  className={cn(
-                    'w-full rounded-md border px-3 py-2 text-sm outline-none',
-                    'focus:border-gray-400 focus:ring-1 focus:ring-gray-400',
-                    errors.phone ? 'border-red-300' : 'border-gray-300'
-                  )}
-                  placeholder='+380 99 123 4567'
-                />
-
-                {errors.phone && (
-                  <p className='mt-1 text-xs text-red-500'>
-                    {errors.phone.message}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label
-                  htmlFor='reg-password'
-                  className='mb-1 block text-sm font-medium text-gray-700'
-                >
-                  Password
-                </label>
-
-                <PasswordInput
-                  id='reg-password'
-                  {...register('password')}
-                  hasError={!!errors.password}
-                  autoComplete='new-password'
-                  placeholder='At least 6 characters'
-                />
-
-                {errors.password && (
-                  <p className='mt-1 text-xs text-red-500'>
-                    {errors.password.message}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label
-                  htmlFor='reg-confirm-password'
-                  className='mb-1 block text-sm font-medium text-gray-700'
-                >
-                  Confirm password
-                </label>
-
-                <PasswordInput
-                  id='reg-confirm-password'
-                  {...register('confirmPassword')}
-                  hasError={!!errors.confirmPassword}
-                  autoComplete='new-password'
-                  placeholder='Repeat your password'
-                />
-
-                {errors.confirmPassword && (
-                  <p className='mt-1 text-xs text-red-500'>
-                    {errors.confirmPassword.message}
-                  </p>
-                )}
-              </div>
+              <FormTextInput
+                control={control}
+                fieldName='phone'
+                label='Phone'
+                type='tel'
+                placeholder='+380 99 123 4567'
+              />
 
               <button
                 type='submit'

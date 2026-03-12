@@ -9,6 +9,7 @@ out
 
 *.log
 npm-debug.log*
+*.tsbuildinfo
 
 # editors & tools
 .idea

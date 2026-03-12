@@ -83,6 +83,22 @@ router.get('/', async (req: Request, res: Response) => {
   }
 
   const total = count || 0;
+  const email = (req.query.email as string) || '';
+
+  let registeredEventIds: Set<string> = new Set();
+
+  if (email && data?.length) {
+    const {data: regs} = await supabase
+      .from('registrations')
+      .select('event_id')
+      .eq('email', email)
+      .in(
+        'event_id',
+        data.map((e) => e.id)
+      );
+
+    registeredEventIds = new Set((regs || []).map((r) => r.event_id));
+  }
 
   res.json({
     data: (data || []).map((e) => ({
@@ -91,6 +107,7 @@ router.get('/', async (req: Request, res: Response) => {
       date: e.date,
       location: e.location,
       shortDescription: e.short_description,
+      isRegistered: registeredEventIds.has(e.id),
     })),
     total,
     page,
@@ -111,6 +128,12 @@ router.get('/', async (req: Request, res: Response) => {
  *         required: true
  *         schema:
  *           type: string
+ *       - in: query
+ *         name: email
+ *         schema:
+ *           type: string
+ *           format: email
+ *         description: User email to check registration status
  *     responses:
  *       200:
  *         description: Event details
@@ -138,6 +161,20 @@ router.get('/:id', async (req: Request, res: Response) => {
     return;
   }
 
+  const email = (req.query.email as string) || '';
+  let isRegistered = false;
+
+  if (email) {
+    const {data: reg} = await supabase
+      .from('registrations')
+      .select('id')
+      .eq('event_id', req.params.id)
+      .eq('email', email)
+      .single();
+
+    isRegistered = !!reg;
+  }
+
   res.json({
     data: {
       id: data.id,
@@ -146,6 +183,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       location: data.location,
       shortDescription: data.short_description,
       description: data.description,
+      isRegistered,
     },
     success: true,
   });
@@ -191,7 +229,7 @@ router.post('/:id/register', async (req: Request, res: Response) => {
     return;
   }
 
-  const {fullName, email, phone, password} = req.body as EventRegistration;
+  const {fullName, email, phone} = req.body as EventRegistration;
 
   if (!fullName || !fullName.trim()) {
     res.status(400).json({success: false, message: 'Full name is required'});
@@ -205,14 +243,6 @@ router.post('/:id/register', async (req: Request, res: Response) => {
 
   if (!phone || !phone.trim()) {
     res.status(400).json({success: false, message: 'Phone is required'});
-    return;
-  }
-
-  if (!password || password.length < 6) {
-    res.status(400).json({
-      success: false,
-      message: 'Password must be at least 6 characters',
-    });
     return;
   }
 
@@ -232,22 +262,6 @@ router.post('/:id/register', async (req: Request, res: Response) => {
     return;
   }
 
-  // Create Supabase Auth user (or skip if already exists)
-  const {data: authData, error: authError} = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {full_name: fullName},
-    },
-  });
-
-  if (authError && !authError.message.includes('already registered')) {
-    res.status(400).json({success: false, message: authError.message});
-    return;
-  }
-
-  const userId = authData?.user?.id;
-
   const {error} = await supabase.from('registrations').insert({
     event_id: req.params.id,
     full_name: fullName,
@@ -263,13 +277,59 @@ router.post('/:id/register', async (req: Request, res: Response) => {
   res.status(201).json({
     success: true,
     message: 'Registration successful',
-    data: {
-      user: {
-        id: userId || '',
-        fullName,
-        email,
-      },
-    },
+  });
+});
+
+/**
+ * @swagger
+ * /api/events/{id}/register:
+ *   delete:
+ *     tags: [Events]
+ *     summary: Unregister from an event
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: email
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: email
+ *     responses:
+ *       200:
+ *         description: Unregistered successfully
+ *       400:
+ *         description: Email is required
+ *       404:
+ *         description: Registration not found
+ */
+router.delete('/:id/register', async (req: Request, res: Response) => {
+  const email = (req.query.email as string) || '';
+
+  if (!email) {
+    res.status(400).json({success: false, message: 'Email is required'});
+    return;
+  }
+
+  const {data, error} = await supabase
+    .from('registrations')
+    .delete()
+    .eq('event_id', req.params.id)
+    .eq('email', email)
+    .select()
+    .single();
+
+  if (error || !data) {
+    res.status(404).json({success: false, message: 'Registration not found'});
+    return;
+  }
+
+  res.json({
+    success: true,
+    message: 'Unregistered successfully',
   });
 });
 

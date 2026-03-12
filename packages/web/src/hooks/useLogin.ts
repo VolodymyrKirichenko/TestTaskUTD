@@ -9,8 +9,8 @@ interface AuthResponse {
       id: string;
       fullName: string;
       email: string;
+      phone: string;
     };
-    accessToken: string;
   };
 }
 
@@ -18,7 +18,7 @@ export const useLogin = () => {
   const {login} = useUserStore();
 
   return useMutation({
-    mutationFn: async (payload: {email: string; password: string}) => {
+    mutationFn: async (payload: {email: string}) => {
       const response = await axiosInstance.post<AuthResponse>(
         '/auth/login',
         payload
@@ -37,8 +37,8 @@ export const useSignUp = () => {
   return useMutation({
     mutationFn: async (payload: {
       email: string;
-      password: string;
       fullName: string;
+      phone: string;
     }) => {
       const response = await axiosInstance.post<AuthResponse>(
         '/auth/register',

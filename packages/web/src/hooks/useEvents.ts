@@ -1,6 +1,7 @@
 import {useQuery} from '@tanstack/react-query';
 import type {EventListItem, PaginatedResponse} from '@fullstack/shared';
 import {axiosInstance, queries} from '@/config/api.config';
+import {useUserStore} from '@/store/useUserStore';
 
 interface UseEventsParams {
   page: number;
@@ -17,6 +18,8 @@ export const useEvents = ({
   dateFrom = '',
   dateTo = '',
 }: UseEventsParams) => {
+  const user = useUserStore((s) => s.user);
+
   return useQuery({
     queryKey: [
       queries.events.queryKeys.list,
@@ -25,6 +28,7 @@ export const useEvents = ({
       search,
       dateFrom,
       dateTo,
+      user?.email,
     ],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -42,6 +46,10 @@ export const useEvents = ({
 
       if (dateTo) {
         params.set('dateTo', dateTo);
+      }
+
+      if (user?.email) {
+        params.set('email', user.email);
       }
 
       const response = await axiosInstance.get<

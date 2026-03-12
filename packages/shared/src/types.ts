@@ -12,6 +12,7 @@ export interface Event {
   location: string;
   shortDescription: string;
   description: string;
+  isRegistered?: boolean;
 }
 
 export interface EventListItem {
@@ -20,13 +21,13 @@ export interface EventListItem {
   date: string;
   location: string;
   shortDescription: string;
+  isRegistered?: boolean;
 }
 
 export interface EventRegistration {
   fullName: string;
   email: string;
   phone: string;
-  password: string;
 }
 
 export interface PaginatedResponse<T> {
