@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- packages/server packages/shared",
   "builds": [
     {
       "src": "packages/server/api/index.ts",
