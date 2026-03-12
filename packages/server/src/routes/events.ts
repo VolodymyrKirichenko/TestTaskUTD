@@ -280,4 +280,57 @@ router.post('/:id/register', async (req: Request, res: Response) => {
   });
 });
 
+/**
+ * @swagger
+ * /api/events/{id}/register:
+ *   delete:
+ *     tags: [Events]
+ *     summary: Unregister from an event
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: email
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: email
+ *     responses:
+ *       200:
+ *         description: Unregistered successfully
+ *       400:
+ *         description: Email is required
+ *       404:
+ *         description: Registration not found
+ */
+router.delete('/:id/register', async (req: Request, res: Response) => {
+  const email = (req.query.email as string) || '';
+
+  if (!email) {
+    res.status(400).json({success: false, message: 'Email is required'});
+    return;
+  }
+
+  const {data, error} = await supabase
+    .from('registrations')
+    .delete()
+    .eq('event_id', req.params.id)
+    .eq('email', email)
+    .select()
+    .single();
+
+  if (error || !data) {
+    res.status(404).json({success: false, message: 'Registration not found'});
+    return;
+  }
+
+  res.json({
+    success: true,
+    message: 'Unregistered successfully',
+  });
+});
+
 export default router;

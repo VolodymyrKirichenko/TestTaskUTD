@@ -5,9 +5,11 @@ import {useParams} from 'next/navigation';
 import Link from 'next/link';
 import {useEvent} from '@/hooks/useEvent';
 import {useEventRegistration} from '@/hooks/useEventRegistration';
+import {useEventUnregister} from '@/hooks/useEventUnregister';
 import {useUserStore} from '@/store/useUserStore';
 import {BackArrowIcon, CalendarIcon, LocationIcon} from '@/components/icons';
 import RegistrationModal from '@/components/RegistrationModal';
+import ConfirmModal from '@/components/ConfirmModal';
 import {cn} from '@/utils/cn';
 
 const EventDetailClient: FC = () => {
@@ -15,16 +17,32 @@ const EventDetailClient: FC = () => {
   const {data: event, isLoading, isError} = useEvent(id);
   const user = useUserStore((s) => s.user);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isUnregisterOpen, setIsUnregisterOpen] = useState(false);
 
-  const {mutate: registerForEvent, isPending} = useEventRegistration(id);
+  const {mutate: registerForEvent, isPending: isRegistering} =
+    useEventRegistration(id);
+  const {mutate: unregisterFromEvent, isPending: isUnregistering} =
+    useEventUnregister(id);
 
   const handleQuickRegister = () => {
-    if (!user) return;
+    if (!user) {
+      return;
+    }
+
     registerForEvent({
       fullName: user.fullName,
       email: user.email,
       phone: user.phone,
     });
+  };
+
+  const handleUnregister = () => {
+    if (!user) {
+      return;
+    }
+
+    unregisterFromEvent(user.email);
+    setIsUnregisterOpen(false);
   };
 
   if (isLoading) {
@@ -57,9 +75,24 @@ const EventDetailClient: FC = () => {
   const renderRegisterButton = () => {
     if (event.isRegistered) {
       return (
-        <span className='inline-flex items-center gap-2 rounded-md bg-green-100 px-6 py-3 text-sm font-medium text-green-800'>
-          You are already registered
-        </span>
+        <div className='flex items-center gap-4'>
+          <span className='inline-flex items-center gap-2 rounded-md bg-green-100 px-6 py-3 text-sm font-medium text-green-800'>
+            You are already registered
+          </span>
+
+          <button
+            onClick={() => setIsUnregisterOpen(true)}
+            disabled={isUnregistering}
+            className={cn(
+              'rounded-md border border-red-300 px-4 py-3 text-sm font-medium text-red-600',
+              isUnregistering
+                ? 'cursor-not-allowed opacity-50'
+                : 'hover:bg-red-50'
+            )}
+          >
+            {isUnregistering ? 'Cancelling...' : 'Cancel registration'}
+          </button>
+        </div>
       );
     }
 
@@ -67,13 +100,15 @@ const EventDetailClient: FC = () => {
       return (
         <button
           onClick={handleQuickRegister}
-          disabled={isPending}
+          disabled={isRegistering}
           className={cn(
             'rounded-md bg-gray-900 px-6 py-3 text-sm font-medium text-white',
-            isPending ? 'cursor-not-allowed opacity-50' : 'hover:bg-gray-800'
+            isRegistering
+              ? 'cursor-not-allowed opacity-50'
+              : 'hover:bg-gray-800'
           )}
         >
-          {isPending ? 'Registering...' : 'Register'}
+          {isRegistering ? 'Registering...' : 'Register'}
         </button>
       );
     }
@@ -128,6 +163,16 @@ const EventDetailClient: FC = () => {
         onClose={() => setIsModalOpen(false)}
         eventId={id}
         eventTitle={event.title}
+      />
+
+      <ConfirmModal
+        isOpen={isUnregisterOpen}
+        onClose={() => setIsUnregisterOpen(false)}
+        onConfirm={handleUnregister}
+        title='Cancel registration'
+        message={`Are you sure you want to cancel your registration for "${event.title}"?`}
+        confirmText='Yes, cancel'
+        cancelText='Keep registration'
       />
     </div>
   );
