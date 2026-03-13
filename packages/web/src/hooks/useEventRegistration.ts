@@ -22,6 +22,9 @@ export const useEventRegistration = (eventId: string) => {
       queryClient.invalidateQueries({
         queryKey: [queries.events.queryKeys.detail, eventId],
       });
+      queryClient.invalidateQueries({
+        queryKey: [queries.events.queryKeys.list],
+      });
     },
   });
 };
