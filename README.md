@@ -67,6 +67,21 @@ redis-cli ping
 
 > Якщо Redis недоступний — сервер працює як звичайно, просто без фонової обробки.
 
+## Запуск проєкту
+
+```bash
+npm run dev
+```
+
+Запускає одночасно frontend (Next.js) та backend (Express). Redis має бути запущений заздалегідь (див. вище).
+
+Або окремо:
+
+```bash
+npm run web      # тільки frontend
+npm run server   # тільки backend
+```
+
 ### Структура монорепо
 
 ```
