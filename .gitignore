@@ -12,6 +12,7 @@ out
 *.log
 npm-debug.log*
 *.tsbuildinfo
+dump.rdb
 
 # editors & tools
 .idea
