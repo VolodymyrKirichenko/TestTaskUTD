@@ -14,6 +14,7 @@ import {cn} from '@/utils/cn';
 interface RegistrationModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onResult?: (type: 'success' | 'error', message: string) => void;
   eventId: string;
   eventTitle: string;
 }
@@ -21,6 +22,7 @@ interface RegistrationModalProps {
 const RegistrationModal: FC<RegistrationModalProps> = ({
   isOpen,
   onClose,
+  onResult,
   eventId,
   eventTitle,
 }) => {
@@ -63,6 +65,24 @@ const RegistrationModal: FC<RegistrationModalProps> = ({
       queryClient.invalidateQueries({
         queryKey: [queries.events.queryKeys.list],
       });
+
+      if (onResult) {
+        resetForm();
+        resetMutation();
+        onResult('success', `You have been registered for "${eventTitle}".`);
+      }
+    },
+    onError: (err) => {
+      if (onResult) {
+        const axiosErr = err as {response?: {data?: {message?: string}}};
+        resetForm();
+        resetMutation();
+        onResult(
+          'error',
+          axiosErr.response?.data?.message ||
+            'Something went wrong. Please try again.'
+        );
+      }
     },
   });
 

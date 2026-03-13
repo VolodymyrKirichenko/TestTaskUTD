@@ -10,6 +10,7 @@ import {useUserStore} from '@/store/useUserStore';
 import {BackArrowIcon, CalendarIcon, LocationIcon} from '@/components/icons';
 import RegistrationModal from '@/components/RegistrationModal';
 import ConfirmModal from '@/components/ConfirmModal';
+import ResultModal from '@/components/ResultModal';
 import {cn} from '@/utils/cn';
 
 const EventDetailClient: FC = () => {
@@ -18,6 +19,10 @@ const EventDetailClient: FC = () => {
   const user = useUserStore((s) => s.user);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUnregisterOpen, setIsUnregisterOpen] = useState(false);
+  const [resultModal, setResultModal] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
 
   const {mutate: registerForEvent, isPending: isRegistering} =
     useEventRegistration(id);
@@ -29,11 +34,30 @@ const EventDetailClient: FC = () => {
       return;
     }
 
-    registerForEvent({
-      fullName: user.fullName,
-      email: user.email,
-      phone: user.phone,
-    });
+    registerForEvent(
+      {
+        fullName: user.fullName,
+        email: user.email,
+        phone: user.phone,
+      },
+      {
+        onSuccess: () => {
+          setResultModal({
+            type: 'success',
+            message: `You have been registered for "${event?.title}".`,
+          });
+        },
+        onError: (err) => {
+          const axiosErr = err as {response?: {data?: {message?: string}}};
+          setResultModal({
+            type: 'error',
+            message:
+              axiosErr.response?.data?.message ||
+              'Something went wrong. Please try again.',
+          });
+        },
+      }
+    );
   };
 
   const handleUnregister = () => {
@@ -161,6 +185,10 @@ const EventDetailClient: FC = () => {
       <RegistrationModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+        onResult={(type, message) => {
+          setIsModalOpen(false);
+          setResultModal({type, message});
+        }}
         eventId={id}
         eventTitle={event.title}
       />
@@ -174,6 +202,20 @@ const EventDetailClient: FC = () => {
         confirmText='Yes, cancel'
         cancelText='Keep registration'
       />
+
+      {resultModal && (
+        <ResultModal
+          isOpen
+          onClose={() => setResultModal(null)}
+          type={resultModal.type}
+          title={
+            resultModal.type === 'success'
+              ? 'Registration Successful'
+              : 'Registration Failed'
+          }
+          message={resultModal.message}
+        />
+      )}
     </div>
   );
 };
