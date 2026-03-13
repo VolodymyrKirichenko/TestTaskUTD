@@ -1,6 +1,7 @@
 import {Router, Request, Response} from 'express';
 import {EventRegistration} from '@fullstack/shared';
 import {supabase} from '../config/supabase';
+import {registrationQueue} from '../queues/registration.queue';
 
 const router = Router();
 
@@ -272,6 +273,17 @@ router.post('/:id/register', async (req: Request, res: Response) => {
   if (error) {
     res.status(500).json({success: false, message: error.message});
     return;
+  }
+
+  try {
+    await registrationQueue.add('process-registration', {
+      eventId: req.params.id,
+      fullName,
+      email,
+      phone,
+    });
+  } catch {
+    // Redis unavailable — not critical(For prod)
   }
 
   res.status(201).json({
