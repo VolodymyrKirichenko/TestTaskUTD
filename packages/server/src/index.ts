@@ -8,10 +8,12 @@ let worker: ReturnType<typeof startRegistrationWorker> | null = null;
 const server = app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 
-  try {
-    worker = startRegistrationWorker();
-  } catch {
-    console.warn('Redis unavailable — Bull worker disabled');
+  if (process.env.REDIS_ENABLED === 'true') {
+    try {
+      worker = startRegistrationWorker();
+    } catch {
+      console.warn('Redis unavailable — Bull worker disabled');
+    }
   }
 });
 
