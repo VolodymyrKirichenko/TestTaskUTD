@@ -275,15 +275,17 @@ router.post('/:id/register', async (req: Request, res: Response) => {
     return;
   }
 
-  try {
-    await registrationQueue.add('process-registration', {
-      eventId: req.params.id,
-      fullName,
-      email,
-      phone,
-    });
-  } catch {
-    // Redis unavailable — not critical(For prod)
+  if (process.env.REDIS_ENABLED === 'true') {
+    try {
+      await registrationQueue.add('process-registration', {
+        eventId: req.params.id,
+        fullName,
+        email,
+        phone,
+      });
+    } catch {
+      // Redis unavailable — not critical
+    }
   }
 
   res.status(201).json({
